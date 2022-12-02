@@ -1,6 +1,11 @@
 const std = @import("std");
+const day1 = @import("day1.zig");
 
 pub fn main() !void {
+    try day1.run();
+}
+
+pub fn default_main() !void {
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
 
