@@ -1,10 +1,14 @@
 const std = @import("std");
+
 const day1a = @import("day1a.zig");
 const day1b = @import("day1b.zig");
 
+const day2a = @import("day2a.zig");
+
 pub fn main() !void {
-    try day1a.run();
-    try day1b.run();
+    // try day1a.run();
+    // try day1b.run();
+    try day2a.run();
 }
 
 pub fn default_main() !void {
