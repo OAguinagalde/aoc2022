@@ -4,38 +4,41 @@ const std = @import("std");
 // 
 //     const input = @embedFile("../input/1/input.txt");
 // 
+// Aparently I can make a link and that would work, not a fan of that tho...
 
 pub fn run() !void {
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
     var file = try std.fs.cwd().openFile("input/1/input.txt", .{});
     defer file.close();
     var buf_reader = std.io.bufferedReader(file.reader());
     var reader = buf_reader.reader();
     var buf: [1024]u8 = undefined;
-    var line_count: u32 = 0;
+    
+    var elf_index: u32 = 0;
+    var elf_calories: u32 = 0;
+    
+    var current_line_number: u32 = 1;
+    
+    var max_calories: u32 = 0;
+    var max_calories_index: u32 = 0;
+    var max_calories_index_line: u32 = 0;
+
     while (try reader.readUntilDelimiterOrEof(&buf, '\n')) |slice| {
-        // try stdout.print("line: {s}\n", .{slice});
-        var is_empty = std.mem.eql(u8, slice, "");
-        var is_new_line = std.mem.eql(u8, slice, "\n");
-        if (!is_empty and !is_new_line) {
+        if (!std.mem.eql(u8, slice, "")) {
             var number = try std.fmt.parseInt(u32, slice, 10);
-            try stdout.print("number: {}\n", .{number});
+            elf_calories += number;
         }
         else {
-            try stdout.print("new line\n", .{});
+            if (elf_calories > max_calories) {
+                max_calories = elf_calories;
+                max_calories_index  = elf_index;
+                max_calories_index_line = current_line_number;
+            }
+            elf_index += 1;
+            elf_calories = 0;
         }
-        line_count += 1;
+        current_line_number += 1;
     }
-    try stdout.print("total lines {}\n", .{line_count});
-    try bw.flush();
-    
-    // TODO Why in the hell would this not work?
-    // What does "unable to resolve comptime value" even mean here?
-    // Why would debug printing need the value of a string during compile time?
-    // 
-    //     std.debug.print(slice, .{});
-    // 
 
+    std.debug.print("max_calories: {d} max_calories_index: {d} max_calories_index_line: {d}\n", .{max_calories, max_calories_index, max_calories_index_line});
+    std.debug.print("The answer for day 1 is {d}\n", .{max_calories});
 }
