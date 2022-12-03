@@ -1,8 +1,10 @@
 const std = @import("std");
 const day1 = @import("day1.zig");
+const day1b = @import("day1b.zig");
 
 pub fn main() !void {
     try day1.run();
+    try day1b.run();
 }
 
 pub fn default_main() !void {
