@@ -21,7 +21,6 @@ pub fn run() !void {
         var is_new_line = std.mem.eql(u8, slice, "\n");
         if (!is_empty and !is_new_line) {
             var number = try std.fmt.parseInt(u32, slice, 10);
-            if (number == undefined) {}
             try stdout.print("number: {}\n", .{number});
         }
         else {
@@ -30,6 +29,7 @@ pub fn run() !void {
         line_count += 1;
     }
     try stdout.print("total lines {}\n", .{line_count});
+    try bw.flush();
     
     // TODO Why in the hell would this not work?
     // What does "unable to resolve comptime value" even mean here?
