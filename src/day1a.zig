@@ -39,6 +39,6 @@ pub fn run() !void {
         current_line_number += 1;
     }
 
-    std.debug.print("max_calories: {d} max_calories_index: {d} max_calories_index_line: {d}\n", .{max_calories, max_calories_index, max_calories_index_line});
-    std.debug.print("The answer for day 1 is {d}\n", .{max_calories});
+    // std.debug.print("max_calories: {d} max_calories_index: {d} max_calories_index_line: {d}\n", .{max_calories, max_calories_index, max_calories_index_line});
+    std.debug.print("1a -> {d}\n", .{max_calories});
 }

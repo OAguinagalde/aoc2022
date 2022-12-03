@@ -37,6 +37,6 @@ pub fn run() !void {
         }
     }
 
-    std.debug.print("1st {d} 2nd {d} 3rd {d}\n", .{max_calories_first, max_calories_second, max_calories_third});
-    std.debug.print("The answer for day 1b {d}\n", .{max_calories_first + max_calories_second + max_calories_third});
+    // std.debug.print("1st {d} 2nd {d} 3rd {d}\n", .{max_calories_first, max_calories_second, max_calories_third});
+    std.debug.print("1b -> {d}\n", .{max_calories_first + max_calories_second + max_calories_third});
 }
