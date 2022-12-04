@@ -22,7 +22,7 @@ fn find_item_in_common(a: Rucksack, b: Rucksack, c: Rucksack) u8 {
             return @intCast(u8, item_type);
         }
     }
-    return unreachable;
+    unreachable;
 }
 
 /// converts characters between 'a'...'z' to a number between 0...('z'-'a')
@@ -92,31 +92,42 @@ pub fn run() !void {
     
     var priorities_sum: u32 = 0;
     var elf_index: u32 = 0;
-    var rucksack_a = Rucksack.new();
-    var rucksack_b = Rucksack.new();
-    var rucksack_c = Rucksack.new();
+    var rucksack_a: Rucksack = undefined;
+    var rucksack_b: Rucksack = undefined;
+    var rucksack_c: Rucksack = undefined;
     while (try reader.readUntilDelimiterOrEof(&buf, '\n')) |rucksack_data| {
         switch (rucksack_data[0]) {
             '\n' => continue,
             else => {
-                var rucksack = Rucksack.new(rucksack_data.len);
+                
+                var rucksack = Rucksack.new();
                 for (rucksack_data) |item| {
                     switch (item) {
                         '\r' => continue,
                         else => rucksack.add_next_item(convert(item))
                     }
                 }
-                if (elf_index % 3 == 0) {
-                    if (elf_index != 0) {
-                        // TODO find the item all 3 have in common
+
+                switch (elf_index % 3) {
+                    0 => {
+                        rucksack_a = rucksack;
+                    },
+                    1 => {
+                        rucksack_b = rucksack;
+                    },
+                    2 => {
+                        rucksack_c = rucksack;
+                
                         var item_in_common_converted = find_item_in_common(rucksack_a, rucksack_b, rucksack_c);
-                    }
-                    // TODO start a new group
+                        priorities_sum += item_in_common_converted + 1;
+                    },
+                    else => unreachable
                 }
+
                 elf_index += 1;
             }
         }
     }
 
-    std.debug.print("3a -> {d}\n", .{priorities_sum});
+    std.debug.print("3b -> {d}\n", .{priorities_sum});
 }
