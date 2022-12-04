@@ -79,5 +79,5 @@ pub fn run() !void {
             redundant_section_assignments += 1;
         }
     }
-    std.debug.print("4b -> {d}\n", .{redundant_section_assignments});
+    std.debug.print("4a -> {d}\n", .{redundant_section_assignments});
 }
