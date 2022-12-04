@@ -6,11 +6,14 @@ const day1b = @import("day1b.zig");
 const day2a = @import("day2a.zig");
 const day2b = @import("day2b.zig");
 
+const day3a = @import("day3a.zig");
+
 pub fn main() !void {
     // try day1a.run();
     // try day1b.run();
-    try day2a.run();
-    try day2b.run();
+    // try day2a.run();
+    // try day2b.run();
+    try day3a.run();
 }
 
 pub fn default_main() !void {
