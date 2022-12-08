@@ -1,7 +1,5 @@
 const std = @import("std");
 
-const Mode = enum { ParseInitialState, ParseInstructions };
-
 pub fn run() !void {
     var file = try std.fs.cwd().openFile("input/6/input.txt", .{});
     errdefer file.close();
