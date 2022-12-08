@@ -1,5 +1,60 @@
 const std = @import("std");
 
+const Mode = enum { ParseInitialState, ParseInstructions };
+
 pub fn run() !void {
-    std.debug.print("6b -> {d}\n", .{0});
+    var file = try std.fs.cwd().openFile("input/6/input.txt", .{});
+    errdefer file.close();
+    var buf_reader = std.io.bufferedReader(file.reader());
+    var reader = buf_reader.reader();
+
+    var bunch_of_stack_memory: [1024*2]u8 = undefined;
+    var fixed_buffer_allocator = std.heap.FixedBufferAllocator.init(&bunch_of_stack_memory);
+
+    var results = std.ArrayList(usize).init(fixed_buffer_allocator.allocator());
+    var character_set = std.AutoHashMap(u8, usize).init(fixed_buffer_allocator.allocator());
+    try character_set.ensureTotalCapacity(14);
+    var file_read_buffer: [1024*4]u8 = undefined; // input is exactly 4096
+    while (try reader.readUntilDelimiterOrEof(&file_read_buffer, '\n')) |line| { // line doesnt contain the delimiter '\n'
+        if (line.len == 0) continue; // ignore empty lines
+        
+        const input = line;
+        
+        character_set.clearRetainingCapacity();
+        
+        var index: usize = 0;
+        while (index < input.len): (index += 1) {
+            
+            if (index >= 14) {
+                // reduce character counter or remove character if last one
+                var entry_to_remove = character_set.getEntry(input[index-14]).?;
+                if (entry_to_remove.value_ptr.* > 1) {
+                    entry_to_remove.value_ptr.* -= 1;
+                }
+                else {
+                    _ = character_set.remove(input[index-14]);
+                }
+            }
+
+            // increment character counter or add if new character
+            var entry_to_add = try character_set.getOrPut(input[index]);
+            if (entry_to_add.found_existing) {
+                entry_to_add.value_ptr.* += 1;
+            }
+            else {
+                entry_to_add.value_ptr.* = 1;
+            }
+            
+            if (character_set.count() == 14) {
+                try results.append(index + 1);
+                break;
+            }
+        }
+    }
+
+    // uncomment to see result of every example
+    for (results.items) |result| {
+        std.debug.print("6a -> {}\n", .{result});
+    }
+
 }
