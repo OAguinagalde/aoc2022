@@ -3,7 +3,7 @@ const std = @import("std");
 const Mode = enum { ParseInitialState, ParseInstructions };
 
 pub fn run() !void {
-    var file = try std.fs.cwd().openFile("input/6/example.txt", .{});
+    var file = try std.fs.cwd().openFile("input/6/input.txt", .{});
     errdefer file.close();
     var buf_reader = std.io.bufferedReader(file.reader());
     var reader = buf_reader.reader();
@@ -14,7 +14,7 @@ pub fn run() !void {
     var results = std.ArrayList(usize).init(fixed_buffer_allocator.allocator());
     var character_set = std.AutoHashMap(u8, usize).init(fixed_buffer_allocator.allocator());
     try character_set.ensureTotalCapacity(4);
-    var file_read_buffer: [1024]u8 = undefined;
+    var file_read_buffer: [1024*4]u8 = undefined; // input is exactly 4096
     while (try reader.readUntilDelimiterOrEof(&file_read_buffer, '\n')) |line| { // line doesnt contain the delimiter '\n'
         if (line.len == 0) continue; // ignore empty lines
         
@@ -52,9 +52,10 @@ pub fn run() !void {
         }
     }
 
-    for (results.items) |result| {
-        std.debug.print("result is: {}\n", .{result});
-    }
+    // uncomment to see result of every example
+    // for (results.items) |result| {
+    //     std.debug.print("result is: {}\n", .{result});
+    // }
 
-    std.debug.print("6a -> {d}\n", .{0});
+    std.debug.print("6a -> {d}\n", .{results.items[0]});
 }
