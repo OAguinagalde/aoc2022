@@ -14,10 +14,10 @@ const FileSystem = struct {
 
     const Directory = struct {
         name: Name,
-        index: ?DirectoryIdentifier,
-        parent: DirectoryIdentifier,
-        directories: std.ArrayList(usize),
-        files: std.ArrayList(usize),
+        index: DirectoryIdentifier,
+        parent: ?DirectoryIdentifier,
+        directories: std.ArrayList(DirectoryIdentifier),
+        files: std.ArrayList(FileIdentifier),
     };
 
     /// represents the index where the name starts in `names_storage` + the length of the name
@@ -30,7 +30,9 @@ const FileSystem = struct {
     const FileIdentifier = usize;
 
     const FileSystemError = error {
-        InvalidParentIndex
+        InvalidParentIndex,
+        DirectoryNotFound,
+        FileNotFound
     };
 
     names_storage: std.ArrayList(u8),
@@ -45,6 +47,59 @@ const FileSystem = struct {
             .files = std.ArrayList(Directory).init(allocator),
             .allocator = allocator
         };
+    }
+
+    fn get_root(self: FileSystem) FileSystemError.DirectoryNotFound!DirectoryIdentifier {
+        return if (self.directories.items.len > 0) self.directories.items[0] else FileSystemError.DirectoryNotFound;
+    }
+
+    fn get_directory(self: FileSystem, parent_dir: DirectoryIdentifier, directory_name: []u8) FileSystemError.DirectoryNotFound!DirectoryIdentifier {
+        const parent: Directory = self.directories.items[parent_dir];
+        for (parent.directories) |dir_id| {
+            const name = get_name(dir_id);
+            if (directory_name.len == name.len and std.ascii.startsWithIgnoreCase(name, directory_name)) {
+                return dir_id;
+            }
+        }
+        return FileSystemError.DirectoryNotFound;
+    }
+
+    fn get_path(self: FileSystem, dir_id: DirectoryIdentifier) []DirectoryIdentifier {
+        var path = std.ArrayList(DirectoryIdentifier).init(self.allocator);
+        defer path.clearAndFree();
+        path.append(dir_id);
+        while (self.directories.items[dir_id].parent) |parent| {
+            path.append(parent);
+            dir_id = parent;
+        }
+        std.mem.reverse(DirectoryIdentifier, path.items);
+        return path.items[0..path.items.len];
+    }
+
+    fn get_name(self: FileSystem, dir_id: DirectoryIdentifier) []u8 {
+        const dir: Directory = self.directories.items[dir_id];
+        return self.names_storage.items[dir.name.at];
+    }
+
+    fn get_name(self: FileSystem, file_id: FileIdentifier) []u8 {
+        const file: File = self.files.items[file_id];
+        return self.names_storage.init[file.name.at];
+    }
+
+    fn get_size(self: FileSystem, file_id: FileIdentifier) usize {
+        const file: File = self.files.items[file_id];
+        return file.size;
+    }
+
+    fn get_file(self: FileSystem, location_id: DirectoryIdentifier, file_name: []u8) FileSystemError.FileNotFound!FileIdentifier {
+        const parent_dir: Directory = self.directories.items[location_id];
+        for (parent_dir.files) |file_id| {
+            const name = get_name(file_id);
+            if (name.len == file_name.len and std.ascii.startsWithIgnoreCase(name, file_name)) {
+                return file_id;
+            }
+        }
+        return FileSystemError.FileNotFound;
     }
 
     fn create_directory(self: *FileSystem, parent_index: ?DirectoryIdentifier, name: []u8) FileSystemError.InvalidParentIndex!DirectoryIdentifier {
@@ -87,27 +142,42 @@ const CWD = struct {
 
     cwd: std.ArrayList(FileSystem.DirectoryIdentifier),
 
-    fn init(allocator: std.mem.Allocator) CWD {
-        return CWD {
-            .cwd = std.ArrayList(FileSystem.DirectoryIdentifier).init(allocator)
-        };
+    const cwdError = error {
+        FileSystemEmpty,
+        AlreadyAtRoot
+    };
+
+    fn init(fs: *FileSystem, allocator: std.mem.Allocator) cwdError.FileSystemEmpty!CWD {
+        return if (fs.get_root()) |root| {
+            var cwd =  CWD {
+                .cwd = std.ArrayList(FileSystem.DirectoryIdentifier).init(allocator)
+            };
+            cwd.cd(fs, root);
+            return cwd;
+        }
+        else cwdError.FileSystemEmpty;
+    }
+
+    fn current_dir (self: *CWD) FileSystem.DirectoryIdentifier {
+        return self.cwd.items[-1];
     }
     
     /// changes the current working directory and maps the filesystem as it goes
-    fn cd(self: *CWD, fs: *FileSystem, directory_name: []u8) void {
+    fn cd(self: *CWD, fs: *FileSystem, dir: FileSystem.DirectoryIdentifier) cwdError.AlreadyAtRoot!void {
         if (std.ascii.startsWithIgnoreCase(directory, "..")) {
+            if (cwd.items.len <= 1) return cwdError.AlreadyAtRoot;
             self.cwd.pop();
         }
         else {
-            var current = null;
-            if (cwd.items.len > 0) {
-                current = cwd.items[-1];
-            }
-            else {
-                // moving into the root! AKA initialize the cwd
-            }
-            var dir_id = try fs.create_directory(current, directory_name);
-            try self.cwd.append(dir_id);
+            const current = self.current_dir();
+            // if directory is not in current directory, just rebuild the path
+            try (fs.get_directory(current, dir)) catch |err| {
+                const new_cwd = fs.get_path(dir);
+                self.cwd.clearRetainingCapacity();
+                try self.cwd.appendSlice(new_cwd);
+                return;
+            };
+            try self.cwd.append(dir);
         }
     }
     
@@ -138,6 +208,7 @@ pub fn run() !void {
         
         switch (input[0]) {
             '$' => {
+                const command = input[2..];
                 if (std.ascii.startsWithIgnoreCase(command, "cd")) {
                     const identifier = command[3..];
                     cwd.cd(fs, identifier);
