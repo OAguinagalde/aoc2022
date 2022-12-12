@@ -8,122 +8,155 @@ const FileSystem = struct {
 
     const File = struct {
         index: FileIdentifier,
-        size: usize,
-        name: Name
+        name: Name,
+        size: usize
     };
 
     const Directory = struct {
-        name: Name,
         index: DirectoryIdentifier,
-        parent: ?DirectoryIdentifier,
+        name: Name,
         directories: std.ArrayList(DirectoryIdentifier),
         files: std.ArrayList(FileIdentifier),
     };
 
-    /// represents the index where the name starts in `names_storage` + the length of the name
+    /// represents the index where the name starts in `names` + the length of the name
     const Name = struct {
         at: usize,
         len: usize
     };
 
+    /// This FileSystem does not allow files or directories to be deleted lol
     const DirectoryIdentifier = usize;
     const FileIdentifier = usize;
 
-    const FileSystemError = error {
-        InvalidParentIndex,
-        DirectoryNotFound,
-        FileNotFound
+    const Errors = error {
+        NotFound,
+        RootAlreadyExists
     };
 
-    names_storage: std.ArrayList(u8),
+    names: std.ArrayList(u8),
+    /// The first item will always be the parent directory. If root, then it will be itself.
     directories: std.ArrayList(Directory),
     files: std.ArrayList(File),
     allocator: std.mem.Allocator,
 
     fn init(allocator: std.mem.Allocator) FileSystem {
         return FileSystem {
-            .names_storage = std.ArrayList(u8).init(allocator),
+            .names = std.ArrayList(u8).init(allocator),
             .directories = std.ArrayList(Directory).init(allocator),
             .files = std.ArrayList(Directory).init(allocator),
             .allocator = allocator
         };
     }
 
-    fn get_root(self: FileSystem) FileSystemError.DirectoryNotFound!DirectoryIdentifier {
-        return if (self.directories.items.len > 0) self.directories.items[0] else FileSystemError.DirectoryNotFound;
+    fn get_parent(self: FileSystem, dir: DirectoryIdentifier) DirectoryIdentifier {
+        return self.directories.items[dir].directories[0];
     }
 
-    fn get_directory(self: FileSystem, parent_dir: DirectoryIdentifier, directory_name: []u8) FileSystemError.DirectoryNotFound!DirectoryIdentifier {
-        const parent: Directory = self.directories.items[parent_dir];
-        for (parent.directories) |dir_id| {
-            const name = get_name(dir_id);
-            if (directory_name.len == name.len and std.ascii.startsWithIgnoreCase(name, directory_name)) {
+    fn get_root(self: FileSystem) Errors.NotFound!DirectoryIdentifier {
+        return if (self.directories.items.len > 0) self.directories.items[0] else Errors.NotFound;
+    }
+
+    /// TODO for now this is potentially O(n) where n is the number of directories inside `location`
+    fn get_directory(self: FileSystem, location: DirectoryIdentifier, name: []u8) Errors.NotFound!DirectoryIdentifier {
+        const parent: Directory = self.directories.items[location];
+        
+        if (name.len == 2 and std.ascii.startsWithIgnoreCase(name, "..")) {
+            return parent.directories.items[0];
+        }
+
+        for (parent.directories) |dir_id, i| {
+            
+            if (i == 0) continue; // skip the first one since it will be the parent directory
+            
+            const dir_name = get_name(dir_id);
+            if (dir_name.len == name.len and std.ascii.startsWithIgnoreCase(dir_name, name)) {
                 return dir_id;
             }
         }
-        return FileSystemError.DirectoryNotFound;
+        return Errors.NotFound;
     }
 
-    fn get_path(self: FileSystem, dir_id: DirectoryIdentifier) []DirectoryIdentifier {
+    fn get_path(self: FileSystem, target: DirectoryIdentifier) []DirectoryIdentifier {
         var path = std.ArrayList(DirectoryIdentifier).init(self.allocator);
         defer path.clearAndFree();
-        path.append(dir_id);
-        while (self.directories.items[dir_id].parent) |parent| {
+        
+        const root = try self.get_root();
+        
+        // Add the destination first
+        var dir_added = target;
+        path.append(dir_added);
+
+        // As long as the root has not been added, keep adding the parent
+        while (root != dir_added) {
+            const parent = self.get_parent(dir_added);
             path.append(parent);
-            dir_id = parent;
+            dir_added = parent;
         }
+
+        // Reverse the path so that it goes from root to target directory
         std.mem.reverse(DirectoryIdentifier, path.items);
         return path.items[0..path.items.len];
     }
 
-    fn get_name(self: FileSystem, dir_id: DirectoryIdentifier) []u8 {
-        const dir: Directory = self.directories.items[dir_id];
-        return self.names_storage.items[dir.name.at];
-    }
-
-    fn get_name(self: FileSystem, file_id: FileIdentifier) []u8 {
-        const file: File = self.files.items[file_id];
-        return self.names_storage.init[file.name.at];
-    }
-
-    fn get_size(self: FileSystem, file_id: FileIdentifier) usize {
-        const file: File = self.files.items[file_id];
-        return file.size;
-    }
-
-    fn get_file(self: FileSystem, location_id: DirectoryIdentifier, file_name: []u8) FileSystemError.FileNotFound!FileIdentifier {
-        const parent_dir: Directory = self.directories.items[location_id];
-        for (parent_dir.files) |file_id| {
-            const name = get_name(file_id);
+    fn get_file(self: FileSystem, location: DirectoryIdentifier, name: []u8) Errors.NotFound!FileIdentifier {
+        const dir: Directory = self.directories.items[location];
+        for (dir.files) |file| {
+            const file_name = get_name(file);
             if (name.len == file_name.len and std.ascii.startsWithIgnoreCase(name, file_name)) {
-                return file_id;
+                return file;
             }
         }
-        return FileSystemError.FileNotFound;
+        return Errors.NotFound;
     }
 
-    fn create_directory(self: *FileSystem, parent_index: ?DirectoryIdentifier, name: []u8) FileSystemError.InvalidParentIndex!DirectoryIdentifier {
-        if (parent_index == null and self.directories.items.len != 0) return FileSystemError.InvalidParentIndex;
+    fn get_name(self: FileSystem, directory: DirectoryIdentifier) []u8 {
+        return self.names_storage.items[self.directories.items[directory].name.at];
+    }
+
+    fn get_name(self: FileSystem, file: FileIdentifier) []u8 {
+        return self.names_storage.init[self.files.items[file].name.at];
+    }
+
+    fn get_size(self: FileSystem, file: FileIdentifier) usize {
+        return self.files.items[file].size;
+    }
+
+    /// location should be null IIF its the FileSystem's root. There can only be 1 single root!
+    fn create_directory(self: *FileSystem, location: ?DirectoryIdentifier, name: []u8) Errors.RootAlreadyExists!DirectoryIdentifier {
+        
+        if (location == null and self.directories.items.len != 0) return Errors.RootAlreadyExists;
+        
         var new_directory = Directory {
             .name = save_name(name),
             .index = self.directories.items.len,
-            .parent = parent_index,
             .directories = std.ArrayList(usize).init(self.allocator),
             .files = std.ArrayList(usize).init(self.allocator),
         };
+
+        // Set the directory's parent
+        if (location) |parent| {
+            try new_directory.directories.append(parent);
+            try self.directories.items[parent].directories.append(new_directory.index);
+        }
+        else {
+            // The root's parent directory is itself
+            try new_directory.directories.append(new_directory.index);
+        }
+
         try self.directories.append(new_directory);
-        if (parent_index != null) try self.directories.items[parent_index].directories.append(new_directory.index);
+
         return new_directory.index;
     }
 
-    fn create_file(self: *FileSystem, parent_index: DirectoryIdentifier, name: []u8, file_size: usize) FileSystemError.InvalidParentIndex!FileIdentifier {
+    fn create_file(self: *FileSystem, location: DirectoryIdentifier, name: []u8, size: usize) Errors.NotFound!FileIdentifier {
         var new_file = File {
             .name = save_name(name),
             .index = self.files.items.len,
-            .size = file_size,
+            .size = size,
         };
         try self.files.append(new_file);
-        try self.directories.items[parent_index].files.append(new_file.index);
+        try self.directories.items[location].files.append(new_file.index);
         return new_file.index;
     }
 
@@ -138,46 +171,54 @@ const FileSystem = struct {
     }
 };
 
-const CWD = struct {
+const PathTracker = struct {
 
-    cwd: std.ArrayList(FileSystem.DirectoryIdentifier),
+    path: std.ArrayList(FileSystem.DirectoryIdentifier),
+    fs: *FileSystem,
 
-    const cwdError = error {
-        FileSystemEmpty,
-        AlreadyAtRoot
+    const Errors = error {
+        FileSystemEmpty
     };
 
-    fn init(fs: *FileSystem, allocator: std.mem.Allocator) cwdError.FileSystemEmpty!CWD {
+    /// The FileSystem must be an initialized FileSystem which already has a root defined
+    fn init(fs: FileSystem, allocator: std.mem.Allocator) Errors.FileSystemEmpty!PathTracker {
         return if (fs.get_root()) |root| {
-            var cwd =  CWD {
-                .cwd = std.ArrayList(FileSystem.DirectoryIdentifier).init(allocator)
+            var path_tracker =  PathTracker {
+                .path = std.ArrayList(FileSystem.DirectoryIdentifier).init(allocator)
             };
-            cwd.cd(fs, root);
-            return cwd;
+            path_tracker.cd(fs, root);
+            return path_tracker;
         }
-        else cwdError.FileSystemEmpty;
+        else Errors.FileSystemEmpty;
     }
 
-    fn current_dir (self: *CWD) FileSystem.DirectoryIdentifier {
-        return self.cwd.items[-1];
+    fn cwd(self: PathTracker) FileSystem.DirectoryIdentifier {
+        return self.path.items[-1];
     }
     
-    /// changes the current working directory and maps the filesystem as it goes
-    fn cd(self: *CWD, fs: *FileSystem, dir: FileSystem.DirectoryIdentifier) cwdError.AlreadyAtRoot!void {
-        if (std.ascii.startsWithIgnoreCase(directory, "..")) {
-            if (cwd.items.len <= 1) return cwdError.AlreadyAtRoot;
-            self.cwd.pop();
+    fn cd(self: *PathTracker, dir: FileSystem.DirectoryIdentifier) void {
+        
+        const current = self.cwd();
+
+        // There is 3 options:
+        // 1. it's current's parent dir
+        if (self.fs.get_parent(current) == dir) {
+            self.path.pop();
         }
-        else {
-            const current = self.current_dir();
-            // if directory is not in current directory, just rebuild the path
-            try (fs.get_directory(current, dir)) catch |err| {
-                const new_cwd = fs.get_path(dir);
-                self.cwd.clearRetainingCapacity();
-                try self.cwd.appendSlice(new_cwd);
-                return;
-            };
-            try self.cwd.append(dir);
+        
+        // 2. it's current's child dir
+        else if (self.fs.get_directory(current, dir)) |_| {
+            try self.path.append(dir);
+        }
+        
+        // 3. it's a none of those (but still a valid dir)
+        else |err| switch (err) {
+            // If the dir doesn't exist, in the current directory, just rebuild the path
+            FileSystem.Errors.NotFound => {
+                const path = self.fs.get_path(dir);
+                self.path.clearRetainingCapacity();
+                try self.path.appendSlice(path);
+            }
         }
     }
     
@@ -194,8 +235,8 @@ pub fn run() !void {
     var bunch_of_stack_memory: [1024*2]u8 = undefined;
     var fixed_buffer_allocator = std.heap.FixedBufferAllocator.init(&bunch_of_stack_memory);
     
-    var cwd = CWD.init(fixed_buffer_allocator.allocator());
-    var fs = FileSystem.init(fixed_buffer_allocator.allocator());
+    var fs: FileSystem = FileSystem.init(fixed_buffer_allocator.allocator());
+    var path_tracker: ?PathTracker = null;
 
     var file = try std.fs.cwd().openFile(input_file, .{});
     defer file.close();
@@ -210,8 +251,23 @@ pub fn run() !void {
             '$' => {
                 const command = input[2..];
                 if (std.ascii.startsWithIgnoreCase(command, "cd")) {
-                    const identifier = command[3..];
-                    cwd.cd(fs, identifier);
+                    const directory = command[3..];
+                    if (path_tracker) |path| {
+                        
+                        const location = path.current_dir();
+                        
+                        // If directory doesn't exist create it
+                        const dir = fs.get_directory(location, directory) catch |err| switch (err) {
+                            FileSystem.Errors.NotFound => fs.create_directory(location, directory)
+                        };
+
+                        path.cd(fs, dir);
+                    }
+                    else {
+                        // Its the root then
+                        const root = fs.create_directory(null, directory);
+                        path_tracker = PathTracker.init(fs, fixed_buffer_allocator.allocator());
+                    }
                 }
             },
             _ => {
