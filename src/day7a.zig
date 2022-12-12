@@ -47,16 +47,16 @@ const FileSystem = struct {
         };
     }
 
-    fn get_parent(self: FileSystem, dir: DirectoryIdentifier) DirectoryIdentifier {
+    fn get_parent(self: *const FileSystem, dir: DirectoryIdentifier) DirectoryIdentifier {
         return self.directories.items[dir].directories.items[0];
     }
 
-    fn get_root(self: FileSystem) error{NotFound}!DirectoryIdentifier {
+    fn get_root(self: *const FileSystem) error{NotFound}!DirectoryIdentifier {
         return if (self.directories.items.len > 0) self.directories.items[0].index else NotFound;
     }
 
     /// TODO for now this is potentially O(n) where n is the number of directories inside `location`
-    fn get_directory(self: FileSystem, location: DirectoryIdentifier, name: []u8) error{NotFound}!DirectoryIdentifier {
+    fn get_directory(self: *const FileSystem, location: DirectoryIdentifier, name: []u8) error{NotFound}!DirectoryIdentifier {
         const parent: Directory = self.directories.items[location];
         
         if (name.len == 2 and std.ascii.startsWithIgnoreCase(name, "..")) {
@@ -75,7 +75,7 @@ const FileSystem = struct {
         return NotFound;
     }
 
-    fn get_path(self: FileSystem, target: DirectoryIdentifier) []DirectoryIdentifier {
+    fn get_path(self: *const FileSystem, target: DirectoryIdentifier) []DirectoryIdentifier {
         var path = std.ArrayList(DirectoryIdentifier).init(self.allocator);
         defer path.clearAndFree();
         
@@ -97,7 +97,7 @@ const FileSystem = struct {
         return path.items[0..path.items.len];
     }
 
-    fn get_file(self: FileSystem, location: DirectoryIdentifier, name: []u8) error{NotFound}!FileIdentifier {
+    fn get_file(self: *const FileSystem, location: DirectoryIdentifier, name: []u8) error{NotFound}!FileIdentifier {
         const dir: Directory = self.directories.items[location];
         for (dir.files) |file| {
             const file_name = get_name(File, file);
@@ -108,7 +108,7 @@ const FileSystem = struct {
         return NotFound;
     }
 
-    fn get_name(self: FileSystem, comptime target_type: anytype, item: usize) []u8 {
+    fn get_name(self: *const FileSystem, comptime target_type: anytype, item: usize) []u8 {
         return switch (target_type) {
             Directory => self.names.items[self.directories.items[item].name.at..self.directories.items[item].name.at + self.directories.items[item].name.len],
             File => self.names.items[self.files.items[item].name.at..self.files.items[item].name.at+self.files.items[item].name.len],
@@ -133,10 +133,12 @@ const FileSystem = struct {
         if (location) |parent| {
             try new_directory.directories.append(parent);
             try self.directories.items[parent].directories.append(new_directory.index);
+            // std.debug.print("created dir {s} at {s}\n", .{name, self.get_name(Directory, parent)});
         }
         else {
             // The root's parent directory is itself
             try new_directory.directories.append(new_directory.index);
+            // std.debug.print("created dir {s} at /\n", .{name});
         }
 
         try self.directories.append(new_directory);
@@ -169,26 +171,36 @@ const FileSystem = struct {
 const PathTracker = struct {
 
     path: std.ArrayList(FileSystem.DirectoryIdentifier),
-    fs: *FileSystem,
+    fs: *const FileSystem,
 
     const FileSystemEmpty = error.FileSystemEmpty;
 
     /// The FileSystem must be an initialized FileSystem which already has a root defined
     /// TODO specify error error{FileSystemEmpty}
-    fn init(fs: *FileSystem, allocator: std.mem.Allocator) !PathTracker {
+    fn init(fs: *const FileSystem, allocator: std.mem.Allocator) !PathTracker {
         return if (fs.get_root()) |root| {
             var path_tracker =  PathTracker {
                 .fs = fs,
                 .path = std.ArrayList(FileSystem.DirectoryIdentifier).init(allocator)
             };
-            try path_tracker.cd(root);
+            try path_tracker.path.append(root);
             return path_tracker;
         }
         else |_| FileSystemEmpty;
     }
 
-    fn cwd(self: PathTracker) FileSystem.DirectoryIdentifier {
+    fn cwd(self: *const PathTracker) FileSystem.DirectoryIdentifier {
         return self.path.items[self.path.items.len-1];
+    }
+
+    fn pretty_print(self: *const PathTracker, buffer: [*]u8) !usize {
+        var i:usize = 0;
+        for (self.path.items) |dir| {
+            const name = self.fs.get_name(FileSystem.Directory, dir);
+            const printed = try std.fmt.bufPrint(buffer[i..i+name.len+1], "/{s}", .{name});
+            i += printed.len;
+        }
+        return i;
     }
     
     fn cd(self: *PathTracker, dir: FileSystem.DirectoryIdentifier) !void {
@@ -223,11 +235,12 @@ pub fn run() !void {
     
     const day: usize = 7;
     const part = Part.a;
-    const mode = Input.Example;
+    // const mode = Input.Example;
+    const mode = Input.Real;
 
     var input_file = comptime std.fmt.comptimePrint("input/{d}/{s}.txt", .{day, switch (mode) { .Example => "example", .Real => "input" }});
     
-    var bunch_of_stack_memory: [1024*2]u8 = undefined;
+    var bunch_of_stack_memory: [1024*1000]u8 = undefined;
     var fixed_buffer_allocator = std.heap.FixedBufferAllocator.init(&bunch_of_stack_memory);
     
     var fs: FileSystem = FileSystem.init(fixed_buffer_allocator.allocator());
@@ -248,6 +261,10 @@ pub fn run() !void {
                 if (std.ascii.startsWithIgnoreCase(command, "cd")) {
                     const directory = command[3..];
                     if (path_tracker) |*path| {
+
+                        var buffer: [1024*550]u8 = undefined;
+                        const total:usize = try path.pretty_print(&buffer);
+                        std.debug.print("${s}> cd {s}\n", .{buffer[0..total], directory[0..]});
                         
                         const location = path.cwd();
                         
