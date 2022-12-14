@@ -79,20 +79,10 @@ const FileSystem = struct {
     fn get_path(self: *const FileSystem, target: DirectoryIdentifier, buffer: []u8) ![]DirectoryIdentifier {
         var fixed_buffer_allocator = std.heap.FixedBufferAllocator.init(buffer);
         var path = std.ArrayList(DirectoryIdentifier).init(fixed_buffer_allocator.allocator());
-        
-        const root = try self.get_root();
-        
-        // Add the destination first
-        var dir_added = target;
-        try path.append(dir_added);
-
-        // As long as the root has not been added, keep adding the parent
-        while (root != dir_added) {
-            const parent = self.get_parent(dir_added);
-            try path.append(parent);
-            dir_added = parent;
+        var iterator = try self.iterator_to_root_from(target);
+        while (iterator.next()) |dir_id| {
+            try path.append(dir_id);
         }
-
         // Reverse the path so that it goes from root to target directory
         std.mem.reverse(DirectoryIdentifier, path.items);
         return path.items[0..path.items.len];
@@ -179,21 +169,9 @@ const FileSystem = struct {
         try self.files.append(new_file);
         try self.directories.items[location].files.append(new_file.index);
         
-        const root = try self.get_root();
-        var current_dir = location;
-        // propagate the size of the file towards root
-        while (true) {
-            
-            // update size of dir
-            var dir = self.directories.items[current_dir];
-            dir.size += size;
-            
-            // if dir is root, finish propagation
-            if (current_dir == root) break;
-
-            // else, continue with parent
-            const parent = self.get_parent(current_dir);
-            current_dir = parent;
+        var iterator = try self.iterator_to_root_from(location);
+        while (iterator.next()) |dir_id| {
+            self.directories.items[dir_id].size += size;
         }
 
         return new_file.index;
@@ -201,9 +179,14 @@ const FileSystem = struct {
 
     // TODO make an iterator that goes through every directory up to the root and use inside create_file, get_path, and find_solutions
     /// the directory `location` is will be the first item of the iterator, and `root` will be the last
-    // fn iterator_to_root(self: *const FileSystem, location: DirectoryIdentifier) DirectoryIterator {
-        
-    // }
+    fn iterator_to_root_from(self: *const FileSystem, location: DirectoryIdentifier) !DirectoryIterator {
+        return DirectoryIterator {
+            .fs = self,
+            .first = location,
+            .item = location,
+            .last = try self.get_root(),
+        };
+    }
 
     /// make a copy of the name and return a representing Name object
     fn save_name(self: *FileSystem, name: []const u8) !Name {
@@ -218,28 +201,28 @@ const FileSystem = struct {
     /// Lazily iterates over all the folders from the initial one (included) until the root (included) of the file system
     const DirectoryIterator = struct {
         
+        const Self = @This();
+
         fs: *const FileSystem,
-        next: ?DirectoryIdentifier,
+        item: ?DirectoryIdentifier,
         first: DirectoryIdentifier,
         last: DirectoryIdentifier,
-        
-        const Self = @This();
 
         /// gets the next directory of the iterator
         pub fn next(self: *Self) ?DirectoryIdentifier {
-            const current = self.next;
+            const current = self.item;
             if (current == null) return null;
             
             // update the next one to the parent (except if its the root)
-            const parent = self.fs.get_parent(current);
-            self.next = if (current == parent) null else parent;
+            const parent = self.fs.get_parent(current.?);
+            self.item = if (current.? == parent) null else parent;
             
-            return current;
+            return current.?;
         }
 
         /// Resets the iterator to the initial token.
         pub fn reset(self: *Self) void {
-            self.next = self.first;
+            self.item = self.first;
         }
 
         // pub fn peek(self: *Self) ?DirectoryIdentifier { }
@@ -305,8 +288,9 @@ pub fn run() !void {
     
     const day: usize = 7;
     const part = Part.a;
-    const mode = Input.Example;
-    // const mode = Input.Real;
+    // const mode = Input.Example;
+    const mode = Input.Real;
+    const print_simulation = false;
 
     var input_file = comptime std.fmt.comptimePrint("input/{d}/{s}.txt", .{day, switch (mode) { .Example => "example", .Real => "input" }});
     
@@ -334,7 +318,7 @@ pub fn run() !void {
                         
                         var buffer: [1024*1]u8 = undefined;
                         const path_as_string = try fs.get_path_as_string(location, &buffer);
-                        std.debug.print("$ {s}> cd {s}\n", .{path_as_string, directory[0..]});
+                        if (print_simulation) std.debug.print("$ {s}> cd {s}\n", .{path_as_string, directory[0..]});
                         
                         // If directory doesn't exist create it
                         const dir = fs.get_directory(location, directory) catch |err| switch (err) {
@@ -346,7 +330,7 @@ pub fn run() !void {
                     else {
                         // Its the root then
                         _ = try fs.create_directory(null, directory);
-                        std.debug.print("$ /> \n", .{});
+                        if (print_simulation) std.debug.print("$ /> \n", .{});
                         path_tracker = try PathTracker.init(&fs, fixed_buffer_allocator.allocator());
                     }
                 }
@@ -361,7 +345,7 @@ pub fn run() !void {
                     
                     var buffer: [1024*1]u8 = undefined;
                     const path_as_string = try fs.get_path_as_string(current_directory, &buffer);
-                    std.debug.print("$ {s}> touch {s} ({d})\n", .{path_as_string, file_name, size});
+                    if (print_simulation) std.debug.print("$ {s}> touch {s} ({d})\n", .{path_as_string, file_name, size});
 
                     _ = try fs.create_file(current_directory, file_name, size);
                 }
@@ -377,5 +361,12 @@ pub fn run() !void {
         }
     }
 
-    std.debug.print("{d}{s} -> {}\n", .{day, @tagName(part), 0});
+    // find the solution
+    var total: usize = 0;
+    for (fs.directories.items) |*dir| {
+        if (dir.size < 100000)
+            total += dir.size;
+    }
+
+    std.debug.print("{d}{s} -> {}\n", .{day, @tagName(part), total});
 }
