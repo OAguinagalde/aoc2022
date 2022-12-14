@@ -17,6 +17,7 @@ const FileSystem = struct {
         name: Name,
         directories: std.ArrayList(DirectoryIdentifier),
         files: std.ArrayList(FileIdentifier),
+        size: usize
     };
 
     /// represents the index where the name starts in `names` + the length of the name
@@ -149,6 +150,7 @@ const FileSystem = struct {
             .index = self.directories.items.len,
             .directories = std.ArrayList(usize).init(self.allocator),
             .files = std.ArrayList(usize).init(self.allocator),
+            .size = 0
         };
 
         // Set the directory's parent
@@ -176,8 +178,32 @@ const FileSystem = struct {
         };
         try self.files.append(new_file);
         try self.directories.items[location].files.append(new_file.index);
+        
+        const root = try self.get_root();
+        var current_dir = location;
+        // propagate the size of the file towards root
+        while (true) {
+            
+            // update size of dir
+            var dir = self.directories.items[current_dir];
+            dir.size += size;
+            
+            // if dir is root, finish propagation
+            if (current_dir == root) break;
+
+            // else, continue with parent
+            const parent = self.get_parent(current_dir);
+            current_dir = parent;
+        }
+
         return new_file.index;
     }
+
+    // TODO make an iterator that goes through every directory up to the root and use inside create_file, get_path, and find_solutions
+    /// the directory `location` is will be the first item of the iterator, and `root` will be the last
+    // fn iterator_to_root(self: *const FileSystem, location: DirectoryIdentifier) DirectoryIterator {
+        
+    // }
 
     /// make a copy of the name and return a representing Name object
     fn save_name(self: *FileSystem, name: []const u8) !Name {
@@ -188,6 +214,38 @@ const FileSystem = struct {
             .at = index, .len = name.len
         };
     }
+
+    /// Lazily iterates over all the folders from the initial one (included) until the root (included) of the file system
+    const DirectoryIterator = struct {
+        
+        fs: *const FileSystem,
+        next: ?DirectoryIdentifier,
+        first: DirectoryIdentifier,
+        last: DirectoryIdentifier,
+        
+        const Self = @This();
+
+        /// gets the next directory of the iterator
+        pub fn next(self: *Self) ?DirectoryIdentifier {
+            const current = self.next;
+            if (current == null) return null;
+            
+            // update the next one to the parent (except if its the root)
+            const parent = self.fs.get_parent(current);
+            self.next = if (current == parent) null else parent;
+            
+            return current;
+        }
+
+        /// Resets the iterator to the initial token.
+        pub fn reset(self: *Self) void {
+            self.next = self.first;
+        }
+
+        // pub fn peek(self: *Self) ?DirectoryIdentifier { }
+        // pub fn rest(self: Self) []const DirectoryIdentifier { }
+
+    };
 };
 
 const PathTracker = struct {
