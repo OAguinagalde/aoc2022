@@ -19,6 +19,7 @@ const day6a = @import("day6a.zig");
 const day6b = @import("day6b.zig");
 
 const day7a = @import("day7a.zig");
+const day7b = @import("day7b.zig");
 
 pub fn main() !void {
     // try day1a.run();
@@ -33,5 +34,6 @@ pub fn main() !void {
     // try day5b.run();
     // try day6a.run();
     // try day6b.run();
-    try day7a.run();
+    // try day7a.run();
+    try day7b.run();
 }
