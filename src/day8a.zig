@@ -94,6 +94,7 @@ pub fn run() !void {
     var current_line_buffer: [1024]u8 = undefined;
     var line_number: usize = 0;
     while (try buf_reader.reader().readUntilDelimiterOrEof(&current_line_buffer, '\n')) |line| {
+        if (line[line.len-1] == '\r') unreachable; // git for windows INSISTS on modifying the files so that they use windows line terminations `crlf`
         if (line.len == 0) continue; // ignore empty lines
 
         // initialize all colums once
