@@ -6,7 +6,7 @@ const Part = enum { a, b };
 const day: usize = 8;
 const part = Part.a;
 const mode = Input.Real;
-const debug = true;
+const debug = false;
 
 const TreeSet = std.AutoHashMap(usize, void);
 
@@ -29,16 +29,16 @@ fn visible_from_sides(tree_line:[]Tree, visible_trees: *TreeSet, allocator: std.
             try viewable_from_left.append(tree);
         }
         else {
-            // The tallest tree that is viewable from the left
-            const peek: Tree = viewable_from_left.items[viewable_from_left.items.len-1];
-            if (tree.height > peek.height) try viewable_from_left.append(tree);
+            // The tallest tree that is viewable from the left (so far)
+            const tallest: Tree = viewable_from_left.items[viewable_from_left.items.len-1];
+            if (tree.height > tallest.height) try viewable_from_left.append(tree);
         }
 
         var i: usize = 1;
-        while (if (viewable_from_right.items.len > i-1) viewable_from_right.items[viewable_from_right.items.len-i] else null) |next| {
-            // the smallest tree viewable from the right
-            if (next.height <= tree.height) _ = viewable_from_right.pop();
-            i += 1;
+        while (if (viewable_from_right.items.len > i-1) viewable_from_right.items[viewable_from_right.items.len-i] else null) |smallest| {
+            // the smallest tree viewable from the right (so far)
+            if (smallest.height <= tree.height) _ = viewable_from_right.pop()
+            else i += 1;
         }
         try viewable_from_right.append(tree);
     }
@@ -66,7 +66,7 @@ fn visible(columns: []std.ArrayList(Tree), rows: []std.ArrayList(Tree), allocato
         if (debug) {
             var buf: [200]u8 = undefined;
             for (tree_array.items) |tree, i| {
-                _ = try std.fmt.bufPrint(buf[i..], "{d}", .{if (visible_trees.contains(tree.index)) tree.height else 0 });
+                _ = try std.fmt.bufPrint(buf[i..], "{c}", .{if (visible_trees.contains(tree.index)) tree.height + '0' else '|' });
             }
             std.debug.print("{s}\n", .{buf[0..tree_array.items.len]});
         }
@@ -84,6 +84,7 @@ pub fn run() !void {
     
     var columns = std.ArrayList(std.ArrayList(Tree)).init(fixed_buffer_allocator.allocator());
     var rows = std.ArrayList(std.ArrayList(Tree)).init(fixed_buffer_allocator.allocator());
+    var dimensions: ?usize = null;
     var once = false;
 
     var file = try std.fs.cwd().openFile(input_file, .{});
@@ -98,6 +99,7 @@ pub fn run() !void {
         // initialize all colums once
         if (!once) {
             for (line) |_| try columns.append(std.ArrayList(Tree).init(fixed_buffer_allocator.allocator()));
+            dimensions = line.len;
             once = true;
         }
 
@@ -106,9 +108,8 @@ pub fn run() !void {
 
         // populate current row and partial column
         var row = &rows.items[rows.items.len-1];
-        const dimensions = line.len;
         for (line) |height, column| {
-            const tree = Tree { .height = height - '0', .index = line_number * dimensions + column };
+            const tree = Tree { .height = height - '0', .index = (line_number * dimensions.?) + column };
             try columns.items[column].append(tree);
             try row.append(tree);
         }
