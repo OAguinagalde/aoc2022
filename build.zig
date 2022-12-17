@@ -14,6 +14,7 @@ pub fn build(b: *std.build.Builder) void {
     const exe = b.addExecutable("aoc2022", "src/main.zig");
     exe.setTarget(target);
     exe.setBuildMode(mode);
+    exe.addPackagePath("mecha", "lib/mecha/mecha.zig");
     exe.install();
 
     const run_cmd = exe.run();
