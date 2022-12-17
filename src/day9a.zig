@@ -1,15 +1,15 @@
 const std = @import("std");
 
 const ThisFile = @This();
-const Input = enum { example, real };
+const Input = enum { example, input };
 const Part = enum { a, b };
 const AocDay = struct {
     day: u8,
     part: Part
 };
 
-const in = Input.example;
-const debug = true;
+const in = Input.input;
+const debug = false;
 const megabytes = 2;
 
 pub fn run() !void {
@@ -48,14 +48,25 @@ pub fn run() !void {
         break :blk parse_result.value;
     };
 
-    var bunch_of_stack_memory: [megabytes*1000*1000]u8 = undefined;
-    var fixed_buffer_allocator = std.heap.FixedBufferAllocator.init(&bunch_of_stack_memory);
-    _ = fixed_buffer_allocator;
+    var mem: [megabytes*1000*1000]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&mem);
     
     var input_file = comptime std.fmt.comptimePrint("input/{d}/{s}.txt", .{aoc.day, @tagName(in)});
     var file = try std.fs.cwd().openFile(input_file, .{});
     defer file.close();
 
+    var hx: i32 = 0;
+    var hy: i32 = 0;
+
+    var tx: i32 = 0;
+    var ty: i32 = 0;
+
+    const Position = struct {
+        x: i32, y: i32
+    };
+    
+    var positions = std.AutoHashMap(Position, void).init(fba.allocator());
+    
     var buf_reader = std.io.bufferedReader(file.reader());
     var current_line_buffer: [1024]u8 = undefined;
     var line_number: usize = 0;
@@ -65,9 +76,76 @@ pub fn run() !void {
         // ignore empty lines
         if (line.len == 0) continue;
 
+        const direction = line[0];
+        const times = try std.fmt.parseInt(usize, line[2..], 10);
+        var count: usize = 0;
+        while (count < times) : (count += 1) {
+            switch (direction) {
+                'U' => {
+                    hy += 1;
+                    
+                    const dy = try std.math.absInt(hy - ty);
+                    
+                    if (dy > 1) {
+                        ty += 1;
+                        
+                        const dx = hx - tx;
+                        if (dx > 0) tx += 1
+                        else if (dx < 0) tx -= 1;
+                    }
+
+                },
+                'D' => {
+                    hy -= 1;
+
+                    const dy = try std.math.absInt(hy - ty);
+                    
+                    if (dy > 1) {
+                        ty -= 1;
+                        
+                        const dx = hx - tx;
+                        if (dx > 0) tx += 1
+                        else if (dx < 0) tx -= 1;
+                    }
+                
+                },
+                'L' => {
+                    hx -= 1;
+
+                    const dx = try std.math.absInt(hx - tx);
+
+                    if (dx > 1) {
+                        tx -= 1;
+
+                        const dy = hy - ty;
+                        if (dy > 0) ty += 1
+                        else if (dy < 0) ty -= 1;
+                    }
+                
+                },
+                'R' => {
+                    hx += 1;
+
+                    const dx = try std.math.absInt(hx - tx);
+
+                    if (dx > 1) {
+                        tx += 1;
+
+                        const dy = hy - ty;
+                        if (dy > 0) ty += 1
+                        else if (dy < 0) ty -= 1;
+                    }
+                },
+                else => unreachable
+            }
+            if (debug) std.debug.print("{}, {}\n", .{tx, ty});
+            _ = try positions.put(.{ .x = tx, .y = ty }, {});
+        }
+
+
         line_number += 1;
     }
 
-    const solution: usize = 0;
+    const solution: usize = positions.count();
     std.debug.print("Advent Of Code 2022, day {d}, part {s}, input: {s}, solution: {d}\n", .{aoc.day, @tagName(aoc.part), @tagName(in), solution});
 }
