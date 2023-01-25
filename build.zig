@@ -15,6 +15,7 @@ pub fn build(b: *std.build.Builder) void {
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.addPackagePath("mecha", "lib/mecha/mecha.zig");
+    exe.emit_docs = .emit;
     exe.install();
 
     const run_cmd = exe.run();
