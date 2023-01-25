@@ -271,14 +271,12 @@ const PathTracker = struct {
             try self.path.append(dir);
         }
         
-        // 3. it's a none of those (but still a valid dir)
-        else |err| switch (err) {
-            // If the dir doesn't exist, in the current directory, just rebuild the path
-            FileSystem.NotFound => {
-                const path = self.fs.get_path(dir);
-                self.path.clearRetainingCapacity();
-                try self.path.appendSlice(path);
-            }
+        // 3. it's a none of those and is a valid dir, just rebuild the path
+        else {
+            var bunch_of_stack_memory: [1024*1]u8 = undefined;
+            const path = try self.fs.get_path(dir, &bunch_of_stack_memory);
+            self.path.clearRetainingCapacity();
+            try self.path.appendSlice(path);
         }
     }
     

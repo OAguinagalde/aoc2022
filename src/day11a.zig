@@ -76,7 +76,7 @@ pub fn run() !void {
     }.callback);
 
     const solution: i32 = 0;
-    std.debug.print("Advent Of Code 2022, day {d}, part {s}, input: {s}, solution:\n\n{s}\n", .{aoc.day, @tagName(aoc.part), @tagName(in), solution});
+    std.debug.print("Advent Of Code 2022, day {d}, part {s}, input: {s}, solution:\n\n{d}\n", .{aoc.day, @tagName(aoc.part), @tagName(in), solution});
 }
 
 test {
@@ -150,9 +150,6 @@ test {
 
     };
 
-    
-
-
     const parser =
         mecha.many(
             mecha.map(Monkey, mecha.toStruct(Monkey), mecha.combine(.{
@@ -161,7 +158,6 @@ test {
                 mecha.discard(mecha.string(":")),
                 mecha.discard(mecha.ascii.space),
                 mecha.discard(mecha.string("Starting items: ")),
-                mecha.
                 helper.comma_separated_items,
                 mecha.discard(mecha.string("Operation: new = old ")),
                 mecha.map(Operation, mecha.toStruct(Operation), mecha.combine(.{
@@ -195,129 +191,3 @@ test {
         std.debug.print("operation {s}\n", .{@tagName(monkey.operation.type)});
     }
 }
-
-// test {
-//     const example =
-//         \\Monkey 0:
-//         \\  Starting items: 79, 98
-//         \\  Operation: new = old * 19
-//         \\  Test: divisible by 23
-//         \\    If true: throw to monkey 2
-//         \\    If false: throw to monkey 3
-//         \\
-//         \\Monkey 1:
-//         \\  Starting items: 54, 65, 75, 74
-//         \\  Operation: new = old + 6
-//         \\  Test: divisible by 19
-//         \\    If true: throw to monkey 2
-//         \\    If false: throw to monkey 0
-//         \\
-//         \\Monkey 2:
-//         \\  Starting items: 79, 60, 97
-//         \\  Operation: new = old * old
-//         \\  Test: divisible by 13
-//         \\    If true: throw to monkey 1
-//         \\    If false: throw to monkey 3
-//         \\
-//         \\Monkey 3:
-//         \\  Starting items: 74
-//         \\  Operation: new = old + 3
-//         \\  Test: divisible by 17
-//         \\    If true: throw to monkey 0
-//         \\    If false: throw to monkey 1
-//     ;
-
-//     // https://github.com/Hejsil/mecha f039efe
-//     const mecha = @import("mecha");
-
-//     const Item = struct {
-//         worry: i32
-//     };
-//     const Value = struct {
-//         val: ?i32,
-//     };
-//     const Operation = struct {
-//         const Type = enum {
-//             @"+",
-//             @"*"
-//         };
-//         type: Type,
-//         value: Value
-//     };
-//     const Monkey = struct {
-//         id: usize,
-//         items: []Item,
-//         operation: Operation,
-//         division_test_value: i32,
-//         test_pass_monkey_id: i32,
-//         test_fail_monkey_id: i32,
-//     };
-    
-//     const mappers = struct {
-        
-//         const value_parser = 
-//             mecha.oneOf(.{
-//                 mecha.string("old"),
-//                 mecha.int(i32, .{})
-//             });
-
-//         fn value_mapper(allocator: std.mem.Allocator, parsed: mecha.ParserResult(value_parser)) !Value {
-//             _ = allocator;
-//             const type_info = @typeInfo(parsed.value);
-//             switch (type_info) {
-//                 .String => return Value { .value = null },
-//                 .Int => return Value { .value = parsed.value },
-//                 else => unreachable
-//             }
-//         }
-//     };
-
-//     const parser =
-//         mecha.many(
-//             mecha.map(Monkey, mecha.toStruct(Monkey), mecha.combine(.{
-//                 mecha.discard(mecha.string("Monkey ")),
-//                 mecha.int(usize, .{}),
-//                 mecha.discard(mecha.string(":")),
-//                 mecha.discard(mecha.ascii.space),
-//                 mecha.discard(mecha.string("Starting items: ")),
-//                 mecha.many(
-//                     mecha.map(Item, mecha.toStruct(Item), mecha.combine(.{
-//                         mecha.int(i32, .{}),
-//                         mecha.discard(mecha.combine(.{
-//                             mecha.opt(mecha.string(", ")),
-//                             mecha.opt(mecha.ascii.space),
-//                         }))
-//                     }))
-//                 , .{}),
-//                 mecha.discard(mecha.string("Operation: new = old ")),
-//                 mecha.map(Operation, mecha.toStruct(Operation), mecha.combine(.{
-//                     mecha.enumeration(Operation.Type),
-//                     mecha.discard(mecha.string(" ")),
-//                     mecha.map(Value, mappers.value_mapper, mappers.value_parser)
-//                 })),
-//                 mecha.discard(std.ascii.spaces),
-//                 mecha.discard(mecha.string("Test: divisible by ")),
-//                 mecha.int(i32, .{}),
-//                 mecha.discard(std.ascii.spaces),
-//                 mecha.discard(mecha.string("If true: throw to monkey ")),
-//                 mecha.int(i32, .{}),
-//                 mecha.discard(std.ascii.spaces),
-//                 mecha.discard(mecha.string("If false: throw to monkey ")),
-//                 mecha.int(i32, .{}),
-//                 mecha.discard(mecha.opt(std.ascii.spaces)),
-//             }))
-//         , .{});
-
-//     var mem: [1*1000*1000]u8 = undefined;
-//     var fba = std.heap.FixedBufferAllocator.init(&mem);
-//     const result = try parser(fba.allocator(), example);
-//     const monkeys: []Monkey = result.value;
-//     for (monkeys) |monkey| {
-//         std.debug.print("Monkey {d}\n", .{monkey.id});
-//         std.debug.print("division test {d}\n", .{monkey.division_test_value});
-//         std.debug.print("operation {s}\n", .{@tagName(monkey.operation.type)});
-//         std.debug.print("operation value {d}\n", .{if (monkey.operation.value.val) |v| v else 0});
-//     }
-// }
-
-

@@ -86,7 +86,7 @@ pub fn run() !void {
                 const stack_origin = try std.fmt.parseInt(usize, stack_origin_string, 10) - 1;
                 const stack_target = try std.fmt.parseInt(usize, stack_target_string, 10) - 1;
                
-                std.debug.print("moving an item from stack {d}, to stack {d}, a total of {d} times\n", .{stack_origin, stack_target, repeat_number});
+                if (false) std.debug.print("moving an item from stack {d}, to stack {d}, a total of {d} times\n", .{stack_origin, stack_target, repeat_number});
 
                 const o: *std.ArrayList(u8) = &stacks.items[stack_origin];
                 const t: *std.ArrayList(u8) = &stacks.items[stack_target];
