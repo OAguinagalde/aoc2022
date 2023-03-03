@@ -26,7 +26,6 @@ pub fn run() !void {
                 mecha.discard(mecha.string("day")),
                 // 2. map the rest to a struct AocDay { u8, enum Part {a, b} }
                 mecha.map(
-                    AocDay,
                     mecha.toStruct(AocDay),
                     mecha.combine(.{
                         // 1. first comes a number

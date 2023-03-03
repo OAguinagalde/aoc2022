@@ -19,7 +19,7 @@ const Tree = struct {
 fn calculate_scenic_score_for_line(tree_line:[]Tree, visible_trees: *TreeSet) !void {
 
     const total = tree_line.len;
-    for (tree_line) |tree, i| {
+    for (tree_line, 0..) |tree, i| {
 
         const left_count: usize = switch (i) {
             0 => 0,
@@ -133,7 +133,7 @@ pub fn run() !void {
 
         // populate current row and partial column
         var row = &rows.items[rows.items.len-1];
-        for (line) |height, column| {
+        for (line, 0..) |height, column| {
             const tree = Tree { .height = height - '0', .index = (line_number * dimensions.?) + column };
             try columns.items[column].append(tree);
             try row.append(tree);

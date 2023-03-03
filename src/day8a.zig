@@ -65,7 +65,7 @@ fn visible(columns: []std.ArrayList(Tree), rows: []std.ArrayList(Tree), allocato
 
         if (debug) {
             var buf: [200]u8 = undefined;
-            for (tree_array.items) |tree, i| {
+            for (tree_array.items, 0..) |tree, i| {
                 _ = try std.fmt.bufPrint(buf[i..], "{c}", .{if (visible_trees.contains(tree.index)) tree.height + '0' else '|' });
             }
             std.debug.print("{s}\n", .{buf[0..tree_array.items.len]});
@@ -109,7 +109,7 @@ pub fn run() !void {
 
         // populate current row and partial column
         var row = &rows.items[rows.items.len-1];
-        for (line) |height, column| {
+        for (line, 0..) |height, column| {
             const tree = Tree { .height = height - '0', .index = (line_number * dimensions.?) + column };
             try columns.items[column].append(tree);
             try row.append(tree);

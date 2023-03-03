@@ -17,7 +17,7 @@ const Rucksack = struct {
 };
 
 fn find_item_in_common(a: Rucksack, b: Rucksack, c: Rucksack) u8 {
-    for(a.items_count) |count, item_type| {
+    for(a.items_count, 0..) |count, item_type| {
         if (count != 0 and b.items_count[item_type] != 0 and c.items_count[item_type] != 0) {
             return @intCast(u8, item_type);
         }

@@ -51,7 +51,6 @@ pub fn run() !void {
                 mecha.discard(mecha.string("day")),
                 // 2. map the rest to a struct AocDay { u8, enum Part {a, b} }
                 mecha.map(
-                    AocDay,
                     mecha.toStruct(AocDay),
                     mecha.combine(.{
                         // 1. first comes a number
@@ -97,7 +96,7 @@ pub fn run() !void {
                     else => unreachable
                 }
 
-                for (tx) |_, i| {
+                for (tx, 0..) |_, i| {
                 
                     var towardsx: *i32 = undefined;
                     var towardsy: *i32 = undefined;
@@ -192,7 +191,7 @@ pub fn run() !void {
                 ;
 
                 const columns: usize = blk: {
-                    for (screen_bg) |c, i| if (c == '\n') break :blk i+1;
+                    for (screen_bg, 0..) |c, i| if (c == '\n') break :blk i+1;
                     unreachable;
                 };
                 const rows = @divExact(screen_bg.len, columns);
@@ -209,7 +208,7 @@ pub fn run() !void {
                 // draw the head
                 screen[@intCast(usize, (hx + offsetx) + @intCast(i32, columns) * (hy+offsety))] = 'H';
                 // draw the tail
-                for (tx) |_, i| screen[@intCast(usize, (tx[i]+offsetx) + @intCast(i32, columns) * (ty[i]+offsety))] = '1' + @intCast(u8, i);
+                for (tx, 0..) |_, i| screen[@intCast(usize, (tx[i]+offsetx) + @intCast(i32, columns) * (ty[i]+offsety))] = '1' + @intCast(u8, i);
                 // render
                 std.debug.print("{s}\n\n", .{screen});
             }

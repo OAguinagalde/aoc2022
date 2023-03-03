@@ -39,7 +39,6 @@ pub fn run() !void {
                 mecha.discard(mecha.string("day")),
                 // 2. map the rest to a struct AocDay { u8, enum Part {a, b} }
                 mecha.map(
-                    AocDay,
                     mecha.toStruct(AocDay),
                     mecha.combine(.{
                         // 1. first comes a number
@@ -137,11 +136,11 @@ test {
         const comma_separated_items =
             mecha.oneOf(.{                                                       
                 mecha.combine(.{
-                    mecha.map(Item, mecha.toStruct(Item), mecha.int(i32, .{})),
+                    mecha.map(mecha.toStruct(Item), mecha.int(i32, .{})),
                     mecha.discard(mecha.string(", ")),
                     mecha.ref(more_comma_separated_items),
                 }),
-                mecha.map(Item, mecha.toStruct(Item), mecha.int(i32, .{}))
+                mecha.map(mecha.toStruct(Item), mecha.int(i32, .{}))
             });
 
         fn more_comma_separated_items() mecha.Parser(Item){
@@ -152,34 +151,35 @@ test {
 
     const parser =
         mecha.many(
-            mecha.map(Monkey, mecha.toStruct(Monkey), mecha.combine(.{
+            mecha.map(mecha.toStruct(Monkey), mecha.combine(.{
                 mecha.discard(mecha.string("Monkey ")),
                 mecha.int(usize, .{}),
                 mecha.discard(mecha.string(":")),
-                mecha.discard(mecha.ascii.space),
+                mecha.discard(mecha.ascii.whitespace),
                 mecha.discard(mecha.string("Starting items: ")),
                 helper.comma_separated_items,
                 mecha.discard(mecha.string("Operation: new = old ")),
-                mecha.map(Operation, mecha.toStruct(Operation), mecha.combine(.{
+                mecha.map(mecha.toStruct(Operation), mecha.combine(.{
                     mecha.enumeration(Operation.Type),
-                    mecha.discard(mecha.ascii.space),
+                    mecha.discard(mecha.ascii.whitespace),
                     mecha.discard(mecha.oneOf(.{
                         mecha.string("old"),
                         mecha.int(i32, .{})
                     }))
                 })),
-                mecha.discard(mecha.ascii.space),
+                mecha.discard(mecha.ascii.whitespace),
                 mecha.discard(mecha.string("Test: divisible by ")),
                 mecha.int(i32, .{}),
-                mecha.discard(mecha.ascii.space),
+                mecha.discard(mecha.ascii.whitespace),
                 mecha.discard(mecha.string("If true: throw to monkey ")),
                 mecha.int(i32, .{}),
-                mecha.discard(mecha.ascii.space),
+                mecha.discard(mecha.ascii.whitespace),
                 mecha.discard(mecha.string("If false: throw to monkey ")),
                 mecha.int(i32, .{}),
-                mecha.discard(mecha.opt(mecha.ascii.space)),
-            }))
-        , .{});
+                mecha.discard(mecha.opt(mecha.ascii.whitespace)),
+            })),
+            .{}
+        );
 
     var mem: [1*1000*1000]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&mem);

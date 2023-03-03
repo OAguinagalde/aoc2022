@@ -61,7 +61,7 @@ pub fn run() !void {
 
                 // push the items in the current line into the stacks.
                 // Example line: '    [D]    '
-                for (stacks.items) |*stack, i| {
+                for (stacks.items, 0..) |*stack, i| {
                     const item = line[(i * 4) + 1];
                     if (item == ' ') continue;
                     try stack.insert(0, item);
@@ -101,7 +101,7 @@ pub fn run() !void {
         }
 
         const debug_print_status_of_stacks = false;
-        if (debug_print_status_of_stacks) for (stacks.items) |stack, i| {
+        if (debug_print_status_of_stacks) for (stacks.items, 0..) |stack, i| {
             std.debug.print("{d} : [", .{i+1});
             for (stack.items) |item| {
                 std.debug.print("{c}, ", .{item});
@@ -112,7 +112,7 @@ pub fn run() !void {
 
     // Now the stacks have the final state, so calculate the points
     var message = std.mem.zeroes([1024] u8);
-    for (stacks.items) |stack, i| {
+    for (stacks.items, 0..) |stack, i| {
         if (stack.items.len == 0) continue;
         message[i] = stack.items[stack.items.len - 1];
     }

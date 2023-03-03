@@ -64,7 +64,7 @@ const FileSystem = struct {
             return parent.directories.items[0];
         }
 
-        for (parent.directories.items) |dir_id, i| {
+        for (parent.directories.items, 0..) |dir_id, i| {
             
             if (i == 0) continue; // skip the first one since it will be the parent directory
             
@@ -97,7 +97,7 @@ const FileSystem = struct {
 
         // the index of the last character that has not been written
         var i: usize = 0;
-        for (path) |dir, index| {
+        for (path, 0..) |dir, index| {
             if (index == 0) continue; // skip root since it is nameless, so basically '/', which is included in the element indexed 1
             
             // get the name of the directory

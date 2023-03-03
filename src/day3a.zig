@@ -25,7 +25,7 @@ const Rucksack = struct {
     }
 
     fn find_item_out_of_place(self: Rucksack) RucksackError!u8 {
-        for(self.first_half) |count, item_type| {
+        for(self.first_half, 0..) |count, item_type| {
             if (count != 0 and self.second_half[item_type] != 0) {
                 return @intCast(u8, item_type);
             }
